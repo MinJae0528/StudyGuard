@@ -13,49 +13,54 @@ Notifications.setNotificationHandler({
 
 export class NotificationService {
   /**
-   * 푸시 알림 권한 요청
+   * 로컬 알림 권한 요청 (푸시 알림 없이)
    */
-  static async registerForPushNotificationsAsync(): Promise<string | null> {
-    let token: string | null = null;
-
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("default", {
-        name: "default",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FF231F7C",
-      });
-    }
-
-    if (Device.isDevice) {
+  static async registerForPushNotificationsAsync(): Promise<boolean> {
+    try {
+      // 먼저 현재 권한 상태 확인
       const { status: existingStatus } =
         await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
 
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
+      // 이미 권한이 있으면 채널만 설정하고 반환
+      if (existingStatus === "granted") {
+        // Android에서 알림 채널 설정
+        if (Platform.OS === "android") {
+          await Notifications.setNotificationChannelAsync("default", {
+            name: "StudyGuard 알림",
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: "#001F3F",
+            sound: "default",
+          });
+        }
+        return true;
       }
 
-      if (finalStatus !== "granted") {
-        console.log("Failed to get push token for push notification!");
-        return null;
-      }
-
-      try {
-        const tokenData = await Notifications.getExpoPushTokenAsync({
-          projectId: "your-expo-project-id", // 실제 프로젝트 ID로 변경 필요
+      // Android에서 알림 채널 설정 (권한 요청 전)
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("default", {
+          name: "StudyGuard 알림",
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: "#001F3F",
+          sound: "default",
         });
-        token = tokenData.data;
-      } catch (error) {
-        console.error("Error getting push token:", error);
-        return null;
       }
-    } else {
-      console.log("Must use physical device for Push Notifications");
-    }
 
-    return token;
+      // 권한 요청
+      const { status } = await Notifications.requestPermissionsAsync();
+
+      if (status !== "granted") {
+        console.log("알림 권한이 거부되었습니다.");
+        return false;
+      }
+
+      console.log("알림 권한이 승인되었습니다! 🎉");
+      return true;
+    } catch (error) {
+      console.error("알림 권한 요청 오류:", error);
+      return false;
+    }
   }
 
   /**

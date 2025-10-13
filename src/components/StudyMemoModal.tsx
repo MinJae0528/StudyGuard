@@ -3,58 +3,76 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
-  ScrollView,
-  Pressable,
   TextInput,
+  TouchableOpacity,
+  Pressable,
   StyleSheet,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
 } from "react-native";
 
-interface RestTimeModalProps {
+interface StudyMemoModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (minutes: number) => void;
+  onConfirm: (subject: string) => void;
+  studyDuration: number; // 학습 시간 (초)
 }
 
-const RestTimeModal: React.FC<RestTimeModalProps> = ({
+const StudyMemoModal: React.FC<StudyMemoModalProps> = ({
   visible,
   onClose,
   onConfirm,
+  studyDuration,
 }) => {
-  const [selectedMinutes, setSelectedMinutes] = useState(1);
-  const [inputValue, setInputValue] = useState("1");
+  const [subject, setSubject] = useState("");
+
+  // 시간을 시:분:초 형식으로 포맷팅
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}시간 ${minutes}분 ${secs}초`;
+    } else if (minutes > 0) {
+      return `${minutes}분 ${secs}초`;
+    } else {
+      return `${secs}초`;
+    }
+  };
+
+  // 빠른 선택 옵션들
+  const quickSubjects = [
+    "수학",
+    "영어",
+    "국어",
+    "과학",
+    "사회",
+    "코딩",
+    "독서",
+    "시험준비",
+    "과제",
+    "복습",
+  ];
 
   // 모달이 열릴 때마다 초기화
   useEffect(() => {
     if (visible) {
-      setSelectedMinutes(1);
-      setInputValue("1");
+      setSubject("");
     }
   }, [visible]);
 
-  // 빠른 선택 옵션 (1분 추가)
-  const quickOptions = [1, 5, 10, 15, 20, 25, 30, 45, 60];
-
-  const handleInputChange = (text: string) => {
-    setInputValue(text);
-    const num = parseInt(text, 10);
-    if (!isNaN(num) && num >= 1 && num <= 60) {
-      setSelectedMinutes(num);
-    }
-  };
-
-  const handleQuickSelect = (minutes: number) => {
-    setSelectedMinutes(minutes);
-    setInputValue(minutes.toString());
+  const handleQuickSelect = (selectedSubject: string) => {
+    setSubject(selectedSubject);
   };
 
   const handleConfirm = () => {
-    const finalMinutes = Math.max(1, Math.min(60, selectedMinutes));
-    onConfirm(finalMinutes);
-    onClose();
+    if (subject.trim()) {
+      onConfirm(subject.trim());
+      onClose();
+    }
   };
 
   return (
@@ -78,35 +96,33 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
             >
               {/* 헤더 */}
               <View style={styles.header}>
-                <Text style={styles.title}>⏱️ 휴식 시간 설정</Text>
+                <Text style={styles.title}>📝 공부 내용 기록</Text>
                 <Text style={styles.subtitle}>
-                  1분부터 60분까지 설정 가능합니다
+                  {formatTime(studyDuration)} 동안 무엇을 공부하셨나요?
+                </Text>
+              </View>
+
+              {/* 학습 시간 표시 */}
+              <View style={styles.durationContainer}>
+                <Text style={styles.durationLabel}>학습 시간</Text>
+                <Text style={styles.durationText}>
+                  {formatTime(studyDuration)}
                 </Text>
               </View>
 
               {/* 직접 입력 영역 */}
               <View style={styles.inputSection}>
-                <Text style={styles.inputLabel}>시간 직접 입력</Text>
-                <View style={styles.inputContainer}>
-                  <TextInput
-                    value={inputValue}
-                    onChangeText={handleInputChange}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                    placeholder="1"
-                    style={styles.textInput}
-                    placeholderTextColor="#9CA3AF"
-                  />
-                  <Text style={styles.inputUnit}>분</Text>
-                </View>
-                {(parseInt(inputValue) < 1 ||
-                  parseInt(inputValue) > 60 ||
-                  isNaN(parseInt(inputValue))) &&
-                  inputValue !== "" && (
-                    <Text style={styles.errorText}>
-                      1분에서 60분 사이의 숫자를 입력해주세요
-                    </Text>
-                  )}
+                <Text style={styles.inputLabel}>공부 내용 입력</Text>
+                <TextInput
+                  value={subject}
+                  onChangeText={setSubject}
+                  placeholder="예: 수학 문제집 3단원"
+                  style={styles.textInput}
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  maxLength={50}
+                />
+                <Text style={styles.characterCount}>{subject.length}/50</Text>
               </View>
 
               {/* 빠른 선택 옵션 */}
@@ -117,13 +133,13 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
                   showsHorizontalScrollIndicator={false}
                   style={styles.quickSelectContainer}
                 >
-                  {quickOptions.map((minutes) => (
+                  {quickSubjects.map((quickSubject) => (
                     <TouchableOpacity
-                      key={minutes}
-                      onPress={() => handleQuickSelect(minutes)}
+                      key={quickSubject}
+                      onPress={() => handleQuickSelect(quickSubject)}
                       style={[
                         styles.quickSelectButton,
-                        selectedMinutes === minutes &&
+                        subject === quickSubject &&
                           styles.quickSelectButtonSelected,
                       ]}
                       activeOpacity={0.7}
@@ -131,12 +147,12 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
                       <Text
                         style={[
                           styles.quickSelectButtonText,
-                          selectedMinutes === minutes &&
+                          subject === quickSubject &&
                             styles.quickSelectButtonTextSelected,
                         ]}
                         numberOfLines={1}
                       >
-                        {minutes}분
+                        {quickSubject}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -147,18 +163,15 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
               <View style={styles.buttonSection}>
                 <TouchableOpacity
                   onPress={handleConfirm}
-                  disabled={selectedMinutes < 1 || selectedMinutes > 60}
+                  disabled={!subject.trim()}
                   style={[
                     styles.confirmButton,
-                    (selectedMinutes < 1 || selectedMinutes > 60) &&
-                      styles.confirmButtonDisabled,
+                    !subject.trim() && styles.confirmButtonDisabled,
                   ]}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.confirmButtonText}>
-                    {selectedMinutes >= 1 && selectedMinutes <= 60
-                      ? `${selectedMinutes}분 휴식 시작`
-                      : "시간을 입력해주세요"}
+                    기록하고 휴식 설정하기
                   </Text>
                 </TouchableOpacity>
 
@@ -169,13 +182,6 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
                 >
                   <Text style={styles.cancelButtonText}>취소</Text>
                 </TouchableOpacity>
-              </View>
-
-              {/* 안내 메시지 */}
-              <View style={styles.infoSection}>
-                <Text style={styles.infoText}>
-                  💡 휴식이 끝나면 알림이 울립니다! 다른 앱을 사용해도 괜찮아요
-                </Text>
               </View>
             </ScrollView>
           </View>
@@ -204,7 +210,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   title: {
     fontSize: 24,
@@ -218,8 +224,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#6B7280",
   },
+  durationContainer: {
+    backgroundColor: "#EBF8FF",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    alignItems: "center",
+  },
+  durationLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  durationText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#001F3F",
+  },
   inputSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   inputLabel: {
     fontSize: 14,
@@ -227,37 +250,26 @@ const styles = StyleSheet.create({
     color: "#374151",
     marginBottom: 8,
   },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+  textInput: {
     backgroundColor: "#F9FAFB",
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: "#001F3F", // study-primary
+    borderColor: "#E5E7EB",
     paddingHorizontal: 16,
     paddingVertical: 12,
+    fontSize: 16,
+    color: "#374151",
+    minHeight: 80,
+    textAlignVertical: "top",
   },
-  textInput: {
-    flex: 1,
-    fontSize: 32,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#001F3F", // study-primary
-  },
-  inputUnit: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#6B7280",
-    marginLeft: 8,
-  },
-  errorText: {
+  characterCount: {
     fontSize: 12,
-    color: "#C87072", // study-danger
-    marginTop: 8,
-    textAlign: "center",
+    color: "#9CA3AF",
+    textAlign: "right",
+    marginTop: 4,
   },
   quickSelectSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   quickSelectLabel: {
     fontSize: 14,
@@ -272,18 +284,19 @@ const styles = StyleSheet.create({
     marginRight: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 2,
-    borderColor: "#D1D5DB",
+    borderColor: "#E5E7EB",
     backgroundColor: "white",
   },
   quickSelectButtonSelected: {
-    backgroundColor: "#001F3F", // study-primary
+    backgroundColor: "#001F3F",
     borderColor: "#001F3F",
   },
   quickSelectButtonText: {
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#374151",
+    fontSize: 14,
   },
   quickSelectButtonTextSelected: {
     color: "white",
@@ -294,7 +307,7 @@ const styles = StyleSheet.create({
   confirmButton: {
     paddingVertical: 16,
     borderRadius: 12,
-    backgroundColor: "#001F3F", // study-primary
+    backgroundColor: "#001F3F",
   },
   confirmButtonDisabled: {
     backgroundColor: "#D1D5DB",
@@ -303,7 +316,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "white",
     fontWeight: "bold",
-    fontSize: 18,
+    fontSize: 16,
   },
   cancelButton: {
     backgroundColor: "#E5E7EB",
@@ -315,17 +328,6 @@ const styles = StyleSheet.create({
     color: "#374151",
     fontWeight: "600",
   },
-  infoSection: {
-    marginTop: 16,
-    backgroundColor: "#EBF8FF",
-    borderRadius: 8,
-    padding: 12,
-  },
-  infoText: {
-    fontSize: 12,
-    textAlign: "center",
-    color: "#7A9E9F", // study-secondary
-  },
 });
 
-export default RestTimeModal;
+export default StudyMemoModal;
