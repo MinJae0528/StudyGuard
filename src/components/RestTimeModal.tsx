@@ -17,12 +17,16 @@ interface RestTimeModalProps {
   visible: boolean;
   onClose: () => void;
   onConfirm: (minutes: number) => void;
+  onCompleteEnd?: () => void;
+  isExtendedRest?: boolean; // 추가 휴식 시간 모드 (1-5분만)
 }
 
 const RestTimeModal: React.FC<RestTimeModalProps> = ({
   visible,
   onClose,
   onConfirm,
+  onCompleteEnd,
+  isExtendedRest = false,
 }) => {
   const [selectedMinutes, setSelectedMinutes] = useState(1);
   const [inputValue, setInputValue] = useState("1");
@@ -35,13 +39,15 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
     }
   }, [visible]);
 
-  // 빠른 선택 옵션 (1분 추가)
-  const quickOptions = [1, 5, 10, 15, 20, 25, 30, 45, 60];
+  // 빠른 선택 옵션 (추가 휴식 시간 모드일 때는 1-5분만)
+  const quickOptions = isExtendedRest ? [1, 2, 3, 4, 5] : [1, 5, 10, 15, 20, 25, 30, 45, 60];
+  const maxMinutes = isExtendedRest ? 5 : 60;
+  const minMinutes = 1;
 
   const handleInputChange = (text: string) => {
     setInputValue(text);
     const num = parseInt(text, 10);
-    if (!isNaN(num) && num >= 1 && num <= 60) {
+    if (!isNaN(num) && num >= minMinutes && num <= maxMinutes) {
       setSelectedMinutes(num);
     }
   };
@@ -52,7 +58,7 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
   };
 
   const handleConfirm = () => {
-    const finalMinutes = Math.max(1, Math.min(60, selectedMinutes));
+    const finalMinutes = Math.max(minMinutes, Math.min(maxMinutes, selectedMinutes));
     onConfirm(finalMinutes);
     onClose();
   };
@@ -78,9 +84,13 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
             >
               {/* 헤더 */}
               <View style={styles.header}>
-                <Text style={styles.title}>⏱️ 휴식 시간 설정</Text>
+                <Text style={styles.title}>
+                  {isExtendedRest ? "⏱️ 추가 휴식 시간" : "⏱️ 휴식 시간 설정"}
+                </Text>
                 <Text style={styles.subtitle}>
-                  1분부터 60분까지 설정 가능합니다
+                  {isExtendedRest
+                    ? "1분부터 5분까지만 추가 휴식 시간을 설정할 수 있습니다"
+                    : "1분부터 60분까지 설정 가능합니다"}
                 </Text>
               </View>
 
@@ -92,19 +102,19 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
                     value={inputValue}
                     onChangeText={handleInputChange}
                     keyboardType="number-pad"
-                    maxLength={2}
+                    maxLength={isExtendedRest ? 1 : 2}
                     placeholder="1"
                     style={styles.textInput}
                     placeholderTextColor="#9CA3AF"
                   />
                   <Text style={styles.inputUnit}>분</Text>
                 </View>
-                {(parseInt(inputValue) < 1 ||
-                  parseInt(inputValue) > 60 ||
+                {(parseInt(inputValue) < minMinutes ||
+                  parseInt(inputValue) > maxMinutes ||
                   isNaN(parseInt(inputValue))) &&
                   inputValue !== "" && (
                     <Text style={styles.errorText}>
-                      1분에서 60분 사이의 숫자를 입력해주세요
+                      {minMinutes}분에서 {maxMinutes}분 사이의 숫자를 입력해주세요
                     </Text>
                   )}
               </View>
@@ -147,20 +157,32 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
               <View style={styles.buttonSection}>
                 <TouchableOpacity
                   onPress={handleConfirm}
-                  disabled={selectedMinutes < 1 || selectedMinutes > 60}
+                  disabled={selectedMinutes < minMinutes || selectedMinutes > maxMinutes}
                   style={[
                     styles.confirmButton,
-                    (selectedMinutes < 1 || selectedMinutes > 60) &&
+                    (selectedMinutes < minMinutes || selectedMinutes > maxMinutes) &&
                       styles.confirmButtonDisabled,
                   ]}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.confirmButtonText}>
-                    {selectedMinutes >= 1 && selectedMinutes <= 60
-                      ? `${selectedMinutes}분 휴식 시작`
+                    {selectedMinutes >= minMinutes && selectedMinutes <= maxMinutes
+                      ? `${selectedMinutes}분 ${isExtendedRest ? "추가 휴식" : "휴식"} 시작`
                       : "시간을 입력해주세요"}
                   </Text>
                 </TouchableOpacity>
+
+                {onCompleteEnd && (
+                  <TouchableOpacity
+                    onPress={onCompleteEnd}
+                    style={styles.completeEndButton}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.completeEndButtonText}>
+                      휴식 없이 종료
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity
                   onPress={onClose}
@@ -174,7 +196,7 @@ const RestTimeModal: React.FC<RestTimeModalProps> = ({
               {/* 안내 메시지 */}
               <View style={styles.infoSection}>
                 <Text style={styles.infoText}>
-                  💡 휴식이 끝나면 알림이 울립니다! 다른 앱을 사용해도 괜찮아요
+                  💡 휴식이 끝나면 알림이 울립니다!
                 </Text>
               </View>
             </ScrollView>
@@ -304,6 +326,17 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
     fontSize: 18,
+  },
+  completeEndButton: {
+    backgroundColor: "#6B7280",
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  completeEndButtonText: {
+    textAlign: "center",
+    color: "white",
+    fontWeight: "600",
+    fontSize: 15,
   },
   cancelButton: {
     backgroundColor: "#E5E7EB",

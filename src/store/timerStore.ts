@@ -9,6 +9,7 @@ interface TimerState {
   restStartTime: number | null; // 휴식 시작 시간
   isRestTimeOver: boolean; // 휴식 시간이 끝났는지 여부
   restRemainingTime: number; // 남은 휴식 시간 (초)
+  isRestPostponed: boolean; // 휴식 알림에서 나중에를 눌렀는지 여부
 }
 
 interface TimerActions {
@@ -20,6 +21,8 @@ interface TimerActions {
   resetTimer: () => void;
   setRestTimeMinutes: (minutes: number) => void;
   checkRestTimeOver: () => void;
+  setRestPostponed: (postponed: boolean) => void;
+  completeEnd: () => void; // 완전 종료 (학습과 휴식 모두 종료)
 }
 
 type TimerStore = TimerState & TimerActions;
@@ -34,6 +37,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
   restStartTime: null,
   isRestTimeOver: false,
   restRemainingTime: 0,
+  isRestPostponed: false,
 
   // 액션들
   startStudy: () => {
@@ -46,6 +50,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       restStartTime: null,
       isRestTimeOver: false,
       restRemainingTime: 0,
+      isRestPostponed: false, // 공부 시작 시 나중에 상태 초기화
     });
   },
 
@@ -63,9 +68,11 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
 
   stopStudy: (restMinutes: number) => {
     const { studyTime, startTime } = get();
+    const now = Date.now();
+    
     if (startTime) {
+      // 학습 중일 때 측정 종료
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const now = Date.now();
       set({
         isStudying: false,
         isResting: true,
@@ -75,6 +82,16 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         restStartTime: now,
         isRestTimeOver: false,
         restRemainingTime: restMinutes * 60, // 설정된 시간(분)을 초로 변환
+        isRestPostponed: false,
+      });
+    } else {
+      // 이미 휴식 중일 때 추가 휴식 시간 설정
+      set({
+        restTimeMinutes: restMinutes,
+        restStartTime: now,
+        isRestTimeOver: false,
+        restRemainingTime: restMinutes * 60,
+        isRestPostponed: false,
       });
     }
   },
@@ -89,9 +106,9 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       const elapsed = Math.floor((Date.now() - restStartTime) / 1000);
       const restTimeSeconds = restTimeMinutes * 60;
       const remaining = Math.max(0, restTimeSeconds - elapsed);
-      
+
       set({ restRemainingTime: remaining });
-      
+
       if (remaining === 0) {
         set({ isRestTimeOver: true });
       }
@@ -108,6 +125,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       restStartTime: null,
       isRestTimeOver: false,
       restRemainingTime: 0,
+      isRestPostponed: false,
     });
   },
 
@@ -125,5 +143,24 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         set({ isRestTimeOver: true });
       }
     }
+  },
+
+  setRestPostponed: (postponed: boolean) => {
+    set({ isRestPostponed: postponed });
+  },
+
+  completeEnd: () => {
+    // 완전 종료: 학습과 휴식 모두 종료하고 타이머 초기화
+    set({
+      isStudying: false,
+      isResting: false,
+      studyTime: 0,
+      startTime: null,
+      restStartTime: null,
+      restTimeMinutes: 1,
+      isRestTimeOver: false,
+      restRemainingTime: 0,
+      isRestPostponed: false,
+    });
   },
 }));

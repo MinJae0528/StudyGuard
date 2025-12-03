@@ -1,17 +1,17 @@
 import React from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useStudyRecordStore } from "../store/studyRecordStore";
 
 const StudyHistory: React.FC = () => {
+  const navigation = useNavigation();
   const { getTodayRecords, getTotalStudyTimeToday } = useStudyRecordStore();
-  const todayRecords = getTodayRecords();
+  const todayRecords = getTodayRecords().sort(
+    (a, b) => b.timestamp - a.timestamp
+  ); // 최신순 정렬
   const totalTimeToday = getTotalStudyTimeToday();
+  const displayedRecords = todayRecords.slice(0, 3); // 최대 3개만 표시
+  const hasMoreRecords = todayRecords.length > 3;
 
   // 시간을 시:분:초 형식으로 포맷팅
   const formatTime = (seconds: number): string => {
@@ -47,6 +47,16 @@ const StudyHistory: React.FC = () => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
 
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  // 시간을 HH:MM 형식으로 포맷팅 (시작 시간 표시용)
+  const formatStartTime = (timestamp: number): string => {
+    const date = new Date(timestamp);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
     return `${hours.toString().padStart(2, "0")}:${minutes
       .toString()
       .padStart(2, "0")}`;
@@ -88,21 +98,43 @@ const StudyHistory: React.FC = () => {
       </View>
 
       {/* 학습 기록 목록 */}
-      <View style={styles.recordsSection}>
-        <Text style={styles.recordsTitle}>
-          학습 기록 ({todayRecords.length}개)
-        </Text>
-        <ScrollView
-          style={styles.recordsList}
-          showsVerticalScrollIndicator={false}
-        >
-          {todayRecords.map((record, index) => (
+      <TouchableOpacity
+        style={styles.recordsSection}
+        onPress={() => {
+          if (hasMoreRecords || todayRecords.length > 0) {
+            navigation.navigate("AllStudyRecords" as never);
+          }
+        }}
+        activeOpacity={hasMoreRecords || todayRecords.length > 0 ? 0.7 : 1}
+        disabled={todayRecords.length === 0}
+      >
+        <View style={styles.recordsHeader}>
+          <Text style={styles.recordsTitle}>
+            학습 기록 ({todayRecords.length}개)
+          </Text>
+          {(hasMoreRecords || todayRecords.length > 0) && (
+            <Text style={styles.viewAllText}>전체 보기 →</Text>
+          )}
+        </View>
+        <View style={styles.recordsListContainer}>
+          {displayedRecords.map((record) => (
             <View key={record.id} style={styles.recordItem}>
               <View style={styles.recordContent}>
-                <Text style={styles.recordSubject}>{record.subject}</Text>
-                <Text style={styles.recordTime}>
-                  {formatTimeShort(record.duration)}
+                <Text
+                  style={styles.recordSubject}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {record.subject}
                 </Text>
+                <View style={styles.recordMeta}>
+                  <Text style={styles.recordTime}>
+                    {formatTimeShort(record.duration)}
+                  </Text>
+                  <Text style={styles.recordStartTime}>
+                    시작: {formatStartTime(record.timestamp)}
+                  </Text>
+                </View>
               </View>
               <View style={styles.recordTimeDisplay}>
                 <Text style={styles.timeDisplayText}>
@@ -111,8 +143,8 @@ const StudyHistory: React.FC = () => {
               </View>
             </View>
           ))}
-        </ScrollView>
-      </View>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -189,14 +221,24 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
   },
+  recordsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   recordsTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "white",
-    marginBottom: 12,
   },
-  recordsList: {
-    maxHeight: 200,
+  viewAllText: {
+    fontSize: 14,
+    color: "#A8C5C7",
+    fontWeight: "500",
+  },
+  recordsListContainer: {
+    gap: 8,
   },
   recordItem: {
     flexDirection: "row",
@@ -207,19 +249,34 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 12,
     marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#7A9E9F", // study-secondary 색상으로 구분선 추가
   },
   recordContent: {
     flex: 1,
+    marginRight: 8, // 시간 표시와의 간격
+    minWidth: 0, // 텍스트 오버플로우 방지
   },
   recordSubject: {
     fontSize: 16,
     fontWeight: "500",
     color: "white",
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  recordMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   recordTime: {
     fontSize: 14,
     color: "#A8C5C7",
+    fontWeight: "500",
+  },
+  recordStartTime: {
+    fontSize: 12,
+    color: "#7A9E9F",
+    fontStyle: "italic",
   },
   recordTimeDisplay: {
     backgroundColor: "rgba(255, 255, 255, 0.1)",

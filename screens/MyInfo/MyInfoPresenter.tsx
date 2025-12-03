@@ -3,12 +3,41 @@ import {
   SafeAreaView,
   View,
   Text,
-  TouchableOpacity,
   ScrollView,
   StyleSheet,
 } from "react-native";
+import { useStudyRecordStore } from "../../src/store/studyRecordStore";
+import { useStreakStore } from "../../src/store/streakStore";
+import { useGoalStore } from "../../src/store/goalStore";
 
 const MyInfoPresenter = () => {
+  const { getTotalStudyTime, records } = useStudyRecordStore();
+  const { getStreakInfo } = useStreakStore();
+  const { getTodayGoalProgress } = useGoalStore();
+
+  const totalStudyTime = getTotalStudyTime();
+  const streakInfo = getStreakInfo();
+  const dailyGoal = getTodayGoalProgress();
+
+  // 총 학습일 계산 (고유한 날짜 수)
+  const uniqueDates = new Set(records.map((r) => r.date));
+  const totalStudyDays = uniqueDates.size;
+
+  // 시간 포맷팅
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}시간 ${minutes}분`;
+    }
+    return `${minutes}분`;
+  };
+
+  // 최근 학습 기록 (최근 5개)
+  const recentRecords = records
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 5);
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -21,8 +50,8 @@ const MyInfoPresenter = () => {
           <View style={styles.avatarContainer}>
             <Text style={styles.avatarText}>👤</Text>
           </View>
-          <Text style={styles.userName}>사용자 이름</Text>
-          <Text style={styles.userEmail}>user@example.com</Text>
+          <Text style={styles.userName}>StudyGuard 사용자</Text>
+          <Text style={styles.userEmail}>학습을 시작해보세요!</Text>
         </View>
 
         {/* 통계 카드 */}
@@ -31,22 +60,22 @@ const MyInfoPresenter = () => {
             <Text style={styles.cardTitle}>📊 나의 학습 통계</Text>
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>0</Text>
+                <Text style={styles.statNumber}>{totalStudyDays}</Text>
                 <Text style={styles.statLabel}>총 학습일</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={[styles.statNumber, styles.statNumberSuccess]}>
-                  0h
+                  {formatTime(totalStudyTime)}
                 </Text>
                 <Text style={styles.statLabel}>총 학습시간</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={[styles.statNumber, styles.statNumberWarning]}>
-                  0
+                  {streakInfo.currentStreak}
                 </Text>
-                <Text style={styles.statLabel}>평균 집중도</Text>
+                <Text style={styles.statLabel}>연속 학습일</Text>
               </View>
             </View>
           </View>
@@ -56,34 +85,68 @@ const MyInfoPresenter = () => {
         <View style={styles.cardContainer}>
           <View style={styles.statCard}>
             <Text style={styles.cardTitle}>🕐 최근 활동</Text>
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateIcon}>📚</Text>
-              <Text style={styles.emptyStateText}>
-                아직 학습 기록이 없습니다
-              </Text>
-              <Text style={styles.emptyStateSubtext}>공부를 시작해보세요!</Text>
-            </View>
+            {recentRecords.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateIcon}>📚</Text>
+                <Text style={styles.emptyStateText}>
+                  아직 학습 기록이 없습니다
+                </Text>
+                <Text style={styles.emptyStateSubtext}>공부를 시작해보세요!</Text>
+              </View>
+            ) : (
+              <View style={styles.recentRecordsContainer}>
+                {recentRecords.map((record) => (
+                  <View key={record.id} style={styles.recentRecordItem}>
+                    <View style={styles.recentRecordContent}>
+                      <Text style={styles.recentRecordSubject}>
+                        {record.subject}
+                      </Text>
+                      <Text style={styles.recentRecordDate}>
+                        {new Date(record.timestamp).toLocaleDateString("ko-KR", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </Text>
+                    </View>
+                    <Text style={styles.recentRecordTime}>
+                      {formatTime(record.duration)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         </View>
 
-        {/* 목표 설정 */}
-        <View style={styles.cardContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.cardTitle}>🎯 학습 목표</Text>
-            <View style={styles.goalContainer}>
-              <View style={styles.goalHeader}>
-                <Text style={styles.goalLabel}>일일 학습 목표</Text>
-                <Text style={styles.goalProgress}>0 / 2시간</Text>
-              </View>
-              <View style={styles.progressBarContainer}>
-                <View style={[styles.progressBar, { width: "0%" }]} />
+        {/* 오늘의 목표 진행률 */}
+        {dailyGoal.goal && (
+          <View style={styles.cardContainer}>
+            <View style={styles.statCard}>
+              <Text style={styles.cardTitle}>🎯 오늘의 목표</Text>
+              <View style={styles.goalContainer}>
+                <View style={styles.goalHeader}>
+                  <Text style={styles.goalLabel}>일일 학습 목표</Text>
+                  <Text style={styles.goalProgress}>
+                    {formatTime(dailyGoal.goal.targetTime)}
+                  </Text>
+                </View>
+                <View style={styles.progressBarContainer}>
+                  <View
+                    style={[
+                      styles.progressBar,
+                      { width: `${Math.min(dailyGoal.progress, 100)}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.goalProgressText}>
+                  {dailyGoal.progress.toFixed(0)}% 달성
+                </Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.goalButton}>
-              <Text style={styles.goalButtonText}>목표 설정하기</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -229,15 +292,42 @@ const styles = StyleSheet.create({
     backgroundColor: "#001F3F", // study-primary
     height: "100%",
   },
-  goalButton: {
-    backgroundColor: "#001F3F", // study-primary
-    paddingVertical: 12,
-    borderRadius: 12,
+  recentRecordsContainer: {
+    gap: 8,
   },
-  goalButtonText: {
-    textAlign: "center",
-    color: "white",
+  recentRecordItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  recentRecordContent: {
+    flex: 1,
+  },
+  recentRecordSubject: {
+    fontSize: 14,
     fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  recentRecordDate: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  recentRecordTime: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#001F3F",
+  },
+  goalProgressText: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 8,
+    textAlign: "center",
   },
 });
 

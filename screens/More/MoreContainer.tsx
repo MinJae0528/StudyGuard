@@ -9,7 +9,16 @@ const MoreContainer = () => {
     navigation.navigate("MyInfo");
   };
 
-  return <MorePresenter onNavigateToMyInfo={handleNavigateToMyInfo} />;
+  const handleNavigateToStats = () => {
+    navigation.navigate("Stats");
+  };
+
+  return (
+    <MorePresenter
+      onNavigateToMyInfo={handleNavigateToMyInfo}
+      onNavigateToStats={handleNavigateToStats}
+    />
+  );
 };
 
 export default MoreContainer;

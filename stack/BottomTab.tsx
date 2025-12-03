@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import Home from "../screens/Home";
 import More from "../screens/More";
+import Goals from "../screens/Goals";
 
 const Tabs = createBottomTabNavigator();
 
@@ -33,7 +34,7 @@ const CustomTabBar = ({
         marginBottom: 10,
       }}
     >
-      {/* 홈 탭 (왼쪽 절반) */}
+      {/* 홈 탭 */}
       <TouchableOpacity
         style={{
           flex: 1,
@@ -56,7 +57,7 @@ const CustomTabBar = ({
         </Text>
       </TouchableOpacity>
 
-      {/* 중앙 구분선 */}
+      {/* 구분선 */}
       <View
         style={{
           width: 1,
@@ -65,7 +66,39 @@ const CustomTabBar = ({
         }}
       />
 
-      {/* 더보기 탭 (오른쪽 절반) */}
+      {/* 목표 설정 탭 */}
+      <TouchableOpacity
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          paddingTop: 8,
+          paddingBottom: Platform.OS === "ios" ? 40 : 20,
+        }}
+        onPress={() => navigation.navigate("Goals")}
+      >
+        <Text style={{ fontSize: 24, marginBottom: 4 }}>🎯</Text>
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: "600",
+            color: state.index === 1 ? "#001F3F" : "#7A9E9F",
+          }}
+        >
+          목표
+        </Text>
+      </TouchableOpacity>
+
+      {/* 구분선 */}
+      <View
+        style={{
+          width: 1,
+          backgroundColor: "#E5E7EB",
+          marginVertical: 20,
+        }}
+      />
+
+      {/* 더보기 탭 */}
       <TouchableOpacity
         style={{
           flex: 1,
@@ -81,7 +114,7 @@ const CustomTabBar = ({
           style={{
             fontSize: 12,
             fontWeight: "600",
-            color: state.index === 1 ? "#001F3F" : "#7A9E9F",
+            color: state.index === 2 ? "#001F3F" : "#7A9E9F",
           }}
         >
           더보기
@@ -100,6 +133,7 @@ const BottomTab = () => {
       tabBar={(props) => <CustomTabBar {...props} />}
     >
       <Tabs.Screen name="Home" component={Home} />
+      <Tabs.Screen name="Goals" component={Goals} />
       <Tabs.Screen name="More" component={More} />
     </Tabs.Navigator>
   );

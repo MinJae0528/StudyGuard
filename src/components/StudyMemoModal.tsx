@@ -16,7 +16,8 @@ import {
 interface StudyMemoModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (subject: string) => void;
+  onConfirm: (subject: string, skipRest?: boolean) => void;
+  onCompleteEnd?: () => void;
   studyDuration: number; // 학습 시간 (초)
 }
 
@@ -24,6 +25,7 @@ const StudyMemoModal: React.FC<StudyMemoModalProps> = ({
   visible,
   onClose,
   onConfirm,
+  onCompleteEnd,
   studyDuration,
 }) => {
   const [subject, setSubject] = useState("");
@@ -175,6 +177,24 @@ const StudyMemoModal: React.FC<StudyMemoModalProps> = ({
                   </Text>
                 </TouchableOpacity>
 
+                {onCompleteEnd && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (subject.trim()) {
+                        onConfirm(subject.trim(), true);
+                      } else {
+                        onCompleteEnd();
+                      }
+                    }}
+                    style={styles.completeEndButton}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.completeEndButtonText}>
+                      기록하고 종료
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
                   onPress={onClose}
                   style={styles.cancelButton}
@@ -317,6 +337,17 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  completeEndButton: {
+    backgroundColor: "#6B7280",
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  completeEndButtonText: {
+    textAlign: "center",
+    color: "white",
+    fontWeight: "600",
+    fontSize: 15,
   },
   cancelButton: {
     backgroundColor: "#E5E7EB",

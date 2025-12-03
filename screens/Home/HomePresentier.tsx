@@ -1,6 +1,7 @@
 import React from "react";
-import { SafeAreaView, View, Text, StyleSheet } from "react-native";
+import { SafeAreaView, View, Text, StyleSheet, ScrollView } from "react-native";
 import StudyTimer from "../../src/components/StudyTimer";
+import StreakDisplay from "../../src/components/StreakDisplay";
 
 const HomePresenter = () => {
   return (
@@ -9,7 +10,17 @@ const HomePresenter = () => {
         <Text style={styles.title}>StudyGuard</Text>
         <Text style={styles.subtitle}>휴식 중독 해결을 위한 학습 관리</Text>
       </View>
-      <StudyTimer />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* 스트릭 표시 */}
+        <StreakDisplay onPress={() => {}} />
+
+        {/* 타이머 */}
+        <StudyTimer />
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -34,6 +45,13 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: "#A8C5C7", // study-accent
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 160, // 바텀 탭 공간 확보
   },
 });
 

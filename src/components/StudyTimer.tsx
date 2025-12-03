@@ -11,6 +11,8 @@ import {
 import { useTimerStore } from "../store/timerStore";
 import { NotificationService } from "../services/NotificationService";
 import { useStudyRecordStore } from "../store/studyRecordStore";
+import { useStreakStore } from "../store/streakStore";
+import { useGoalStore } from "../store/goalStore";
 import StudyMemoModal from "./StudyMemoModal";
 import RestTimeModal from "./RestTimeModal";
 import StudyHistory from "./StudyHistory";
@@ -23,23 +25,29 @@ const StudyTimer: React.FC = () => {
     restTimeMinutes,
     isRestTimeOver,
     restRemainingTime,
+    isRestPostponed,
     startStudy,
     pauseStudy,
     stopStudy,
     resetTimer,
     checkRestTimeOver,
     updateRestTime,
+    setRestPostponed,
+    completeEnd,
   } = useTimerStore();
 
   const [displayTime, setDisplayTime] = useState("00:00:00");
   const [showMemoModal, setShowMemoModal] = useState(false);
   const [showRestModal, setShowRestModal] = useState(false);
+  const [isExtendedRest, setIsExtendedRest] = useState(false); // 추가 휴식 시간 모드 (1-5분만)
   const [currentStudyTime, setCurrentStudyTime] = useState(0);
 
   const restAlertShown = useRef(false);
   const restOverAlertShown = useRef(false);
 
-  const { addRecord } = useStudyRecordStore();
+  const { addRecord, getTotalStudyTimeToday, getWeeklyStats, getMonthlyStats } = useStudyRecordStore();
+  const { updateStreak } = useStreakStore();
+  const { checkGoalAchievement } = useGoalStore();
 
   // 앱 시작 시 알림 권한 요청 (한 번만)
   useEffect(() => {
@@ -147,7 +155,15 @@ const StudyTimer: React.FC = () => {
         "휴식 시간 종료",
         "설정된 휴식 시간이 끝났습니다. 공부를 시작하시겠습니까?",
         [
-          { text: "나중에", style: "cancel" },
+          {
+            text: "나중에",
+            style: "cancel",
+            onPress: () => {
+              // 나중에를 누르면 추가 휴식 시간 설정 모달 표시 (1-5분만)
+              setIsExtendedRest(true);
+              setShowRestModal(true);
+            },
+          },
           {
             text: "공부 시작",
             style: "default",
@@ -156,10 +172,22 @@ const StudyTimer: React.FC = () => {
         ]
       );
     }
-  }, [isRestTimeOver, isResting, restRemainingTime, startStudy]);
+  }, [
+    isRestTimeOver,
+    isResting,
+    restRemainingTime,
+    startStudy,
+    setRestPostponed,
+  ]);
 
   const handleStart = () => {
-    // 휴식 중에서 공부 시작할 때 확인 메시지
+    // 나중에를 누른 상태에서는 바로 공부 시작 (확인 메시지 없음)
+    if (isRestPostponed) {
+      startStudy();
+      return;
+    }
+
+    // 휴식 중에서 공부 시작할 때 확인 메시지 (나중에를 누르지 않은 경우에만)
     if (isResting) {
       Alert.alert(
         "새로운 공부 시작",
@@ -189,26 +217,88 @@ const StudyTimer: React.FC = () => {
       elapsed = Math.floor((Date.now() - startTime) / 1000);
     }
     const totalTime = studyTime + elapsed;
+    console.log(`[StudyTimer] handleStopMeasurement: studyTime=${studyTime}초, elapsed=${elapsed}초, totalTime=${totalTime}초`);
+    
+    // 최소 학습 시간 체크 (1분 = 60초)
+    const minimumStudyTime = 60;
+    if (totalTime < minimumStudyTime) {
+      Alert.alert(
+        "⚠️ 최소 학습 시간 미달",
+        `최소 ${Math.floor(minimumStudyTime / 60)}분 이상 학습해야 합니다.\n현재 학습 시간: ${Math.floor(totalTime)}초\n\n측정을 종료하시겠습니까?`,
+        [
+          { 
+            text: "취소", 
+            style: "cancel" 
+          },
+          {
+            text: "네, 종료",
+            style: "destructive",
+            onPress: () => {
+              // 기록 없이 종료
+              completeEnd();
+            },
+          },
+        ]
+      );
+      return;
+    }
+    
     setCurrentStudyTime(totalTime);
 
     // 측정 종료 시 메모 입력 모달 표시
     setShowMemoModal(true);
   };
 
-  const handleMemoConfirm = (subject: string) => {
+  const handleMemoConfirm = (subject: string, skipRest: boolean = false) => {
+    console.log(`[StudyTimer] handleMemoConfirm: subject=${subject}, currentStudyTime=${currentStudyTime}초, skipRest=${skipRest}`);
+    
     // 학습 기록 저장
     addRecord(subject, currentStudyTime);
 
-    // 휴식시간 설정 모달 표시 (타이머 초기화는 하지 않음)
-    setShowRestModal(true);
+    // 스트릭 업데이트 (프리미엄 기능)
+    console.log(`[StudyTimer] updateStreak 호출: ${currentStudyTime}초`);
+    updateStreak(currentStudyTime);
+
+    // 목표 달성 체크 (프리미엄 기능)
+    const todayTime = getTotalStudyTimeToday();
+    checkGoalAchievement("daily", todayTime);
+    
+    // 주간/월간 목표도 체크 (주간/월간 총 시간 기준)
+    const weeklyStats = getWeeklyStats(0);
+    checkGoalAchievement("weekly", weeklyStats.totalTime);
+    
+    const monthlyStats = getMonthlyStats(0);
+    checkGoalAchievement("monthly", monthlyStats.totalTime);
+
+    if (skipRest) {
+      // 휴식 없이 종료
+      completeEnd();
+    } else {
+      // 휴식시간 설정 모달 표시 (타이머 초기화는 하지 않음)
+      setShowRestModal(true);
+    }
   };
 
   const handleRestTimeConfirm = async (minutes: number) => {
+    // 추가 휴식 시간 설정 시 알림 플래그 리셋
+    if (isExtendedRest) {
+      restOverAlertShown.current = false;
+    }
+    
     // 휴식 모드로 전환 (알림은 타이머가 0초가 될 때 발송)
     stopStudy(minutes);
     console.log(
       `${minutes}분 휴식 시작. 타이머가 0초가 되면 알림이 발송됩니다.`
     );
+    // 추가 휴식 시간 모드 리셋
+    setIsExtendedRest(false);
+  };
+
+  const handleCompleteEnd = () => {
+    // 종료
+    completeEnd();
+    setShowRestModal(false);
+    setIsExtendedRest(false);
   };
 
   const handleReturnToStudy = () => {
@@ -233,14 +323,20 @@ const StudyTimer: React.FC = () => {
         visible={showMemoModal}
         onClose={() => setShowMemoModal(false)}
         onConfirm={handleMemoConfirm}
+        onCompleteEnd={handleCompleteEnd}
         studyDuration={currentStudyTime}
       />
 
       {/* 휴식 시간 선택 모달 */}
       <RestTimeModal
         visible={showRestModal}
-        onClose={() => setShowRestModal(false)}
+        onClose={() => {
+          setShowRestModal(false);
+          setIsExtendedRest(false);
+        }}
         onConfirm={handleRestTimeConfirm}
+        onCompleteEnd={handleCompleteEnd}
+        isExtendedRest={isExtendedRest}
       />
 
       <ScrollView
@@ -318,13 +414,25 @@ const StudyTimer: React.FC = () => {
 
           {/* 공부 중이 아닐 때: 공부 시작 버튼 (휴식 중이어도 가능) */}
           {!isStudying && (
-            <TouchableOpacity
-              onPress={handleStart}
-              style={[styles.button, styles.startButton]}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.buttonText}>▶️ 공부 시작</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                onPress={handleStart}
+                style={[styles.button, styles.startButton]}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.buttonText}>▶️ 공부 시작</Text>
+              </TouchableOpacity>
+              {/* 휴식 중일 때 종료 버튼 표시 */}
+              {isResting && (
+                <TouchableOpacity
+                  onPress={handleCompleteEnd}
+                  style={[styles.button, styles.endButton]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.buttonText}>🏁 종료</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
 
@@ -445,12 +553,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#7A9E9F", // study-secondary
   },
   warningButton: {
-    backgroundColor: "#D4A574", // study-warning
+    backgroundColor: "#D4A574", // study-warning (측정 종료 버튼)
   },
   accentButton: {
     backgroundColor: "#A8C5C7", // study-accent
     paddingVertical: 12,
     paddingHorizontal: 24,
+  },
+  endButton: {
+    backgroundColor: "#6B7280", // 회색 - 종료 버튼
+    marginTop: 12,
   },
   buttonText: {
     textAlign: "center",
