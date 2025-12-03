@@ -307,10 +307,18 @@ const StudyTimer: React.FC = () => {
   };
 
   const handleCompleteEnd = () => {
-    // 휴식 없이 종료 - 메모 입력 모달 표시
+    // 휴식 모달 닫기
     setShowRestModal(false);
     setIsExtendedRest(false);
 
+    // 휴식 중이거나 휴식 시간 종료 후 "나중에"를 누른 상태에서 호출된 경우
+    // 메모 입력 모달을 표시하지 않고 바로 종료
+    if (isResting || isExtendedRest) {
+      completeEnd();
+      return;
+    }
+
+    // 공부 중이었던 경우에만 메모 입력 모달 표시
     // currentStudyTime이 설정되어 있지 않으면 설정
     if (currentStudyTime === 0) {
       const { startTime } = useTimerStore.getState();

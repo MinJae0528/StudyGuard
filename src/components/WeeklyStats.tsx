@@ -16,38 +16,11 @@ interface WeeklyStatsProps {
 const WeeklyStatsComponent: React.FC<WeeklyStatsProps> = ({
   weekOffset = 0,
 }) => {
-  const { getWeeklyStats } = useStudyRecordStore();
+  const { getWeeklyStats, getStatsByDateRange } = useStudyRecordStore();
   // 시연을 위해 프리미엄 체크 제거
   // const { checkPremiumStatus } = usePremiumStore();
   // const isPremium = checkPremiumStatus();
   const isPremium = true; // 시연용: 항상 프리미엄으로 설정
-
-  const stats: WeeklyStats = getWeeklyStats(weekOffset);
-
-  // 시간 포맷팅
-  const formatTime = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}시간 ${minutes}분`;
-    }
-    return `${minutes}분`;
-  };
-
-  // 날짜 포맷팅 (MM/DD)
-  const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${month}/${day}`;
-  };
-
-  // 요일 가져오기
-  const getDayName = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    const days = ["일", "월", "화", "수", "목", "금", "토"];
-    return days[date.getDay()];
-  };
 
   // 주의 날짜 범위 계산 (일요일부터 토요일까지)
   const getWeekRange = () => {
@@ -77,6 +50,38 @@ const WeeklyStatsComponent: React.FC<WeeklyStatsProps> = ({
   };
 
   const weekRange = getWeekRange();
+  
+  // 일요일부터 토요일까지의 통계 데이터 가져오기
+  const rangeStats = getStatsByDateRange(weekRange.start, weekRange.end);
+  
+  // 주 번호 계산 (표시용)
+  const stats: WeeklyStats = getWeeklyStats(weekOffset);
+
+  // 시간 포맷팅
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}시간 ${minutes}분`;
+    }
+    return `${minutes}분`;
+  };
+
+  // 날짜 포맷팅 (MM/DD)
+  const formatDate = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}/${day}`;
+  };
+
+  // 요일 가져오기
+  const getDayName = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const days = ["일", "월", "화", "수", "목", "금", "토"];
+    return days[date.getDay()];
+  };
+
   const weekStartStr = `${
     weekRange.start.getMonth() + 1
   }/${weekRange.start.getDate()}`;
@@ -84,15 +89,25 @@ const WeeklyStatsComponent: React.FC<WeeklyStatsProps> = ({
     weekRange.end.getMonth() + 1
   }/${weekRange.end.getDate()}`;
 
-  // 일별 데이터 배열 생성 (기존 방식: 날짜 순 정렬)
-  const dayData = Object.entries(stats.days)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, time]) => ({
-      date,
+  // 일별 데이터 배열 생성 (일요일부터 토요일까지 순서대로)
+  const dayData = [];
+  const currentDate = new Date(weekRange.start); // 일요일부터 시작
+  for (let i = 0; i < 7; i++) {
+    // 로컬 시간 기준으로 날짜 문자열 생성 (UTC 변환 방지)
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+    const day = currentDate.getDate();
+    const dateStr = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+    const time = rangeStats.days[dateStr] || 0;
+    dayData.push({
+      date: dateStr,
       time,
-      displayDate: formatDate(date),
-      dayName: getDayName(date),
-    }));
+      displayDate: formatDate(dateStr),
+      dayName: getDayName(dateStr),
+    });
+    // 다음 날로 이동
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
 
   // 최대 시간 계산 (그래프용)
   const maxTime = Math.max(...dayData.map((d) => d.time), 1);
@@ -130,18 +145,18 @@ const WeeklyStatsComponent: React.FC<WeeklyStatsProps> = ({
       <View style={styles.summaryCard}>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>총 학습 시간</Text>
-          <Text style={styles.summaryValue}>{formatTime(stats.totalTime)}</Text>
+          <Text style={styles.summaryValue}>{formatTime(rangeStats.totalTime)}</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>학습 횟수</Text>
-          <Text style={styles.summaryValue}>{stats.recordCount}회</Text>
+          <Text style={styles.summaryValue}>{rangeStats.recordCount}회</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>평균 시간</Text>
           <Text style={styles.summaryValue}>
-            {formatTime(stats.averageTime)}
+            {formatTime(rangeStats.averageTime)}
           </Text>
         </View>
       </View>
