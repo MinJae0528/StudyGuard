@@ -182,8 +182,10 @@ const StudyMemoModal: React.FC<StudyMemoModalProps> = ({
                     onPress={() => {
                       if (subject.trim()) {
                         onConfirm(subject.trim(), true);
+                        onClose(); // 모달 닫기
                       } else {
                         onCompleteEnd();
+                        onClose(); // 모달 닫기
                       }
                     }}
                     style={styles.completeEndButton}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useStreakStore } from "../store/streakStore";
 import { usePremiumStore } from "../store/premiumStore";
@@ -8,11 +8,16 @@ interface StreakDisplayProps {
 }
 
 const StreakDisplay: React.FC<StreakDisplayProps> = ({ onPress }) => {
-  const { getStreakInfo } = useStreakStore();
+  const { getStreakInfo, checkStreakBreak } = useStreakStore();
   const { checkPremiumStatus } = usePremiumStore();
   // 시연용: 프리미엄 체크 제거
   // const isPremium = checkPremiumStatus();
   const isPremium = true; // 시연용: 항상 프리미엄으로 설정
+
+  // 컴포넌트가 마운트될 때 스트릭 끊김 확인
+  useEffect(() => {
+    checkStreakBreak();
+  }, [checkStreakBreak]);
 
   const streakInfo = getStreakInfo();
 

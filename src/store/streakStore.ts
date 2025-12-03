@@ -14,6 +14,9 @@ interface StreakStore extends StreakData {
   // 스트릭 업데이트
   updateStreak: (studyTime: number) => void;
   
+  // 스트릭 끊김 확인 (앱 시작 시 또는 화면 표시 시 호출)
+  checkStreakBreak: () => void;
+  
   // 스트릭 정보 조회
   getStreakInfo: () => {
     currentStreak: number;
@@ -110,6 +113,41 @@ export const useStreakStore = create<StreakStore>()(
         });
         
         console.log(`[Streak] 업데이트 완료: currentStreak=${newCurrentStreak}일, longestStreak=${newLongestStreak}일`);
+      },
+
+      checkStreakBreak: () => {
+        const { lastStudyDate, currentStreak, streakHistory } = get();
+        
+        if (!lastStudyDate) {
+          // 학습 기록이 없으면 체크할 필요 없음
+          return;
+        }
+
+        const today = new Date().toISOString().split("T")[0];
+        const todayDate = new Date(today);
+        const lastDate = new Date(lastStudyDate);
+        const daysDiff = Math.floor(
+          (todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        console.log(`[Streak] checkStreakBreak: daysDiff=${daysDiff}일, lastStudyDate=${lastStudyDate}, today=${today}`);
+
+        // 2일 이상 지났으면 무조건 스트릭 끊김
+        if (daysDiff >= 2) {
+          console.log(`[Streak] 스트릭 끊김 감지: ${daysDiff}일 경과, 스트릭 리셋`);
+          set({
+            currentStreak: 0,
+            lastStudyDate: null,
+          });
+          return;
+        }
+
+        // daysDiff === 1인 경우 (어제 학습, 오늘 아직 학습 안 함)
+        // 이 경우는 스트릭을 유지해야 함 (오늘 하루 종일 기회가 있음)
+        // 다음날(내일)이 되면 daysDiff === 2가 되어 스트릭이 리셋됨
+        
+        // daysDiff === 0인 경우 (오늘 학습함)는 스트릭 유지
+        // 아무것도 하지 않음
       },
 
       getStreakInfo: () => {

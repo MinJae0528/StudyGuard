@@ -26,8 +26,10 @@ const GoalSettingModal: React.FC<GoalSettingModalProps> = ({
   const { getActiveGoal, setDailyGoal, setWeeklyGoal, setMonthlyGoal } = useGoalStore();
   const { checkPremiumStatus } = usePremiumStore();
   
+  // 시연용: 프리미엄 체크 제거
   // 일일 목표는 무료, 주간/월간 목표는 프리미엄
-  const isPremium = type === "daily" ? true : checkPremiumStatus();
+  // const isPremium = type === "daily" ? true : checkPremiumStatus();
+  const isPremium = true; // 시연용: 항상 프리미엄으로 설정
   const isPremiumFeature = type === "weekly" || type === "monthly";
 
   const currentGoal = getActiveGoal(type);

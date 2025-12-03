@@ -49,30 +49,42 @@ const WeeklyStatsComponent: React.FC<WeeklyStatsProps> = ({
     return days[date.getDay()];
   };
 
-  // 주의 날짜 범위 계산
+  // 주의 날짜 범위 계산 (일요일부터 토요일까지)
   const getWeekRange = () => {
     const now = new Date();
     const targetDate = new Date(now);
     targetDate.setDate(now.getDate() + weekOffset * 7);
 
-    const d = new Date(targetDate);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(d.setDate(diff));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
+    // 현재 날짜의 요일 (0=일요일, 1=월요일, ..., 6=토요일)
+    const dayOfWeek = targetDate.getDay();
+
+    // 일요일까지의 차이 계산
+    // 일요일(0)이면 0일, 월요일(1)이면 -1일, 화요일(2)이면 -2일, ..., 토요일(6)이면 -6일
+    const daysToSunday = -dayOfWeek;
+
+    const sunday = new Date(targetDate);
+    sunday.setDate(targetDate.getDate() + daysToSunday);
+    sunday.setHours(0, 0, 0, 0);
+
+    const saturday = new Date(sunday);
+    saturday.setDate(sunday.getDate() + 6);
+    saturday.setHours(23, 59, 59, 999);
 
     return {
-      start: monday,
-      end: sunday,
+      start: sunday, // 일요일
+      end: saturday, // 토요일
     };
   };
 
   const weekRange = getWeekRange();
-  const weekStartStr = `${weekRange.start.getMonth() + 1}/${weekRange.start.getDate()}`;
-  const weekEndStr = `${weekRange.end.getMonth() + 1}/${weekRange.end.getDate()}`;
+  const weekStartStr = `${
+    weekRange.start.getMonth() + 1
+  }/${weekRange.start.getDate()}`;
+  const weekEndStr = `${
+    weekRange.end.getMonth() + 1
+  }/${weekRange.end.getDate()}`;
 
-  // 일별 데이터 배열 생성
+  // 일별 데이터 배열 생성 (기존 방식: 날짜 순 정렬)
   const dayData = Object.entries(stats.days)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, time]) => ({
@@ -276,5 +288,3 @@ const styles = StyleSheet.create({
 });
 
 export default WeeklyStatsComponent;
-
-

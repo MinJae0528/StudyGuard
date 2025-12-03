@@ -45,7 +45,8 @@ const StudyTimer: React.FC = () => {
   const restAlertShown = useRef(false);
   const restOverAlertShown = useRef(false);
 
-  const { addRecord, getTotalStudyTimeToday, getWeeklyStats, getMonthlyStats } = useStudyRecordStore();
+  const { addRecord, getTotalStudyTimeToday, getWeeklyStats, getMonthlyStats } =
+    useStudyRecordStore();
   const { updateStreak } = useStreakStore();
   const { checkGoalAchievement } = useGoalStore();
 
@@ -217,18 +218,24 @@ const StudyTimer: React.FC = () => {
       elapsed = Math.floor((Date.now() - startTime) / 1000);
     }
     const totalTime = studyTime + elapsed;
-    console.log(`[StudyTimer] handleStopMeasurement: studyTime=${studyTime}초, elapsed=${elapsed}초, totalTime=${totalTime}초`);
-    
+    console.log(
+      `[StudyTimer] handleStopMeasurement: studyTime=${studyTime}초, elapsed=${elapsed}초, totalTime=${totalTime}초`
+    );
+
     // 최소 학습 시간 체크 (1분 = 60초)
     const minimumStudyTime = 60;
     if (totalTime < minimumStudyTime) {
       Alert.alert(
         "⚠️ 최소 학습 시간 미달",
-        `최소 ${Math.floor(minimumStudyTime / 60)}분 이상 학습해야 합니다.\n현재 학습 시간: ${Math.floor(totalTime)}초\n\n측정을 종료하시겠습니까?`,
+        `최소 ${Math.floor(
+          minimumStudyTime / 60
+        )}분 이상 학습해야 합니다.\n현재 학습 시간: ${Math.floor(
+          totalTime
+        )}초\n\n측정을 종료하시겠습니까?`,
         [
-          { 
-            text: "취소", 
-            style: "cancel" 
+          {
+            text: "취소",
+            style: "cancel",
           },
           {
             text: "네, 종료",
@@ -242,7 +249,7 @@ const StudyTimer: React.FC = () => {
       );
       return;
     }
-    
+
     setCurrentStudyTime(totalTime);
 
     // 측정 종료 시 메모 입력 모달 표시
@@ -250,8 +257,10 @@ const StudyTimer: React.FC = () => {
   };
 
   const handleMemoConfirm = (subject: string, skipRest: boolean = false) => {
-    console.log(`[StudyTimer] handleMemoConfirm: subject=${subject}, currentStudyTime=${currentStudyTime}초, skipRest=${skipRest}`);
-    
+    console.log(
+      `[StudyTimer] handleMemoConfirm: subject=${subject}, currentStudyTime=${currentStudyTime}초, skipRest=${skipRest}`
+    );
+
     // 학습 기록 저장
     addRecord(subject, currentStudyTime);
 
@@ -262,13 +271,16 @@ const StudyTimer: React.FC = () => {
     // 목표 달성 체크 (프리미엄 기능)
     const todayTime = getTotalStudyTimeToday();
     checkGoalAchievement("daily", todayTime);
-    
+
     // 주간/월간 목표도 체크 (주간/월간 총 시간 기준)
     const weeklyStats = getWeeklyStats(0);
     checkGoalAchievement("weekly", weeklyStats.totalTime);
-    
+
     const monthlyStats = getMonthlyStats(0);
     checkGoalAchievement("monthly", monthlyStats.totalTime);
+
+    // 메모 모달 닫기
+    setShowMemoModal(false);
 
     if (skipRest) {
       // 휴식 없이 종료
@@ -284,7 +296,7 @@ const StudyTimer: React.FC = () => {
     if (isExtendedRest) {
       restOverAlertShown.current = false;
     }
-    
+
     // 휴식 모드로 전환 (알림은 타이머가 0초가 될 때 발송)
     stopStudy(minutes);
     console.log(
@@ -295,10 +307,23 @@ const StudyTimer: React.FC = () => {
   };
 
   const handleCompleteEnd = () => {
-    // 종료
-    completeEnd();
+    // 휴식 없이 종료 - 메모 입력 모달 표시
     setShowRestModal(false);
     setIsExtendedRest(false);
+
+    // currentStudyTime이 설정되어 있지 않으면 설정
+    if (currentStudyTime === 0) {
+      const { startTime } = useTimerStore.getState();
+      let elapsed = 0;
+      if (startTime) {
+        elapsed = Math.floor((Date.now() - startTime) / 1000);
+      }
+      const totalTime = studyTime + elapsed;
+      setCurrentStudyTime(totalTime);
+    }
+
+    // 메모 입력 모달 표시
+    setShowMemoModal(true);
   };
 
   const handleReturnToStudy = () => {
