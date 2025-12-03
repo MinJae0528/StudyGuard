@@ -2,6 +2,14 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// 로컬 시간 기준 날짜 문자열 생성 (UTC 변환 방지)
+const getLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+};
+
 export interface StudyRecord {
   id: string;
   subject: string; // 공부 내용
@@ -59,7 +67,7 @@ export const useStudyRecordStore = create<StudyRecordStore>()(
           id: Date.now().toString(),
           subject,
           duration,
-          date: now.toISOString().split("T")[0], // YYYY-MM-DD
+          date: getLocalDateString(now), // 로컬 시간 기준 YYYY-MM-DD
           timestamp: now.getTime(),
         };
 
@@ -69,7 +77,7 @@ export const useStudyRecordStore = create<StudyRecordStore>()(
       },
 
       getTodayRecords: () => {
-        const today = new Date().toISOString().split("T")[0];
+        const today = getLocalDateString(new Date());
         return get().records.filter((record) => record.date === today);
       },
 
@@ -119,7 +127,7 @@ export const useStudyRecordStore = create<StudyRecordStore>()(
         for (let i = 0; i < 7; i++) {
           const dayDate = new Date(monday);
           dayDate.setDate(monday.getDate() + i);
-          const dateStr = dayDate.toISOString().split("T")[0];
+          const dateStr = getLocalDateString(dayDate);
           days[dateStr] = 0;
         }
 
@@ -171,7 +179,7 @@ export const useStudyRecordStore = create<StudyRecordStore>()(
         const daysInMonth = endDate.getDate();
         for (let i = 1; i <= daysInMonth; i++) {
           const dayDate = new Date(year, month, i);
-          const dateStr = dayDate.toISOString().split("T")[0];
+          const dateStr = getLocalDateString(dayDate);
           days[dateStr] = 0;
         }
 
@@ -210,7 +218,7 @@ export const useStudyRecordStore = create<StudyRecordStore>()(
         const days: { [date: string]: number } = {};
         const currentDate = new Date(start);
         while (currentDate <= end) {
-          const dateStr = currentDate.toISOString().split("T")[0];
+          const dateStr = getLocalDateString(currentDate);
           days[dateStr] = 0;
           currentDate.setDate(currentDate.getDate() + 1);
         }

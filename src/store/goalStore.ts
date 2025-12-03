@@ -2,6 +2,14 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// 로컬 시간 기준 날짜 문자열 생성 (UTC 변환 방지)
+const getLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+};
+
 export interface Goal {
   id: string;
   type: "daily" | "weekly" | "monthly";
@@ -50,7 +58,7 @@ export const useGoalStore = create<GoalStore>()(
       achievements: [],
 
       setDailyGoal: (targetTime: number) => {
-        const today = new Date().toISOString().split("T")[0];
+        const today = getLocalDateString(new Date());
         
         // 오늘 날짜의 목표 찾기
         const existingGoal = get().goals.find(
@@ -95,7 +103,7 @@ export const useGoalStore = create<GoalStore>()(
         const sunday = new Date(now);
         sunday.setDate(now.getDate() + daysToSunday);
         sunday.setHours(0, 0, 0, 0);
-        const weekStart = sunday.toISOString().split("T")[0];
+        const weekStart = getLocalDateString(sunday);
         
         // 이번 주의 목표 찾기
         const existingGoal = get().goals.find(
@@ -174,7 +182,7 @@ export const useGoalStore = create<GoalStore>()(
         const now = new Date();
         
         if (type === "daily") {
-          const today = now.toISOString().split("T")[0];
+          const today = getLocalDateString(now);
           return get().goals.find((g) => g.type === type && g.date === today && g.isActive) || null;
         } else if (type === "weekly") {
           // 현재 주의 시작일 계산 (일요일 기준)
@@ -183,7 +191,7 @@ export const useGoalStore = create<GoalStore>()(
           const sunday = new Date(now);
           sunday.setDate(now.getDate() + daysToSunday);
           sunday.setHours(0, 0, 0, 0);
-          const weekStart = sunday.toISOString().split("T")[0];
+          const weekStart = getLocalDateString(sunday);
           return get().goals.find((g) => g.type === type && g.weekStart === weekStart && g.isActive) || null;
         } else {
           // 월간 목표
@@ -203,7 +211,7 @@ export const useGoalStore = create<GoalStore>()(
         const goal = get().getActiveGoal(type);
         if (!goal) return;
 
-        const today = new Date().toISOString().split("T")[0];
+        const today = getLocalDateString(new Date());
         const achievementRate = goal.targetTime > 0 
           ? Math.min((actualTime / goal.targetTime) * 100, 100) 
           : 0;
@@ -247,7 +255,7 @@ export const useGoalStore = create<GoalStore>()(
           return { goal: null, progress: 0, achieved: false };
         }
 
-        const today = new Date().toISOString().split("T")[0];
+        const today = getLocalDateString(new Date());
         const achievement = get().achievements.find(
           (a) => a.goalId === goal.id && a.date === today
         );

@@ -2,6 +2,14 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// 로컬 시간 기준 날짜 문자열 생성 (UTC 변환 방지)
+const getLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+};
+
 interface StreakData {
   currentStreak: number; // 현재 연속 학습일
   longestStreak: number; // 최장 연속 학습일
@@ -52,8 +60,9 @@ export const useStreakStore = create<StreakStore>()(
           return;
         }
 
-        const today = new Date().toISOString().split("T")[0];
-        const todayDate = new Date(today);
+        const today = getLocalDateString(new Date());
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
         
         // 오늘 이미 학습했는지 확인
         const todayRecord = streakHistory.find((h) => h.date === today);
@@ -73,7 +82,10 @@ export const useStreakStore = create<StreakStore>()(
         let newLongestStreak = longestStreak;
 
         if (lastStudyDate) {
-          const lastDate = new Date(lastStudyDate);
+          // YYYY-MM-DD 문자열을 로컬 시간 기준으로 파싱
+          const [year, month, day] = lastStudyDate.split("-").map(Number);
+          const lastDate = new Date(year, month - 1, day);
+          lastDate.setHours(0, 0, 0, 0);
           const daysDiff = Math.floor(
             (todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
           );
@@ -123,9 +135,13 @@ export const useStreakStore = create<StreakStore>()(
           return;
         }
 
-        const today = new Date().toISOString().split("T")[0];
-        const todayDate = new Date(today);
-        const lastDate = new Date(lastStudyDate);
+        const today = getLocalDateString(new Date());
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
+        // YYYY-MM-DD 문자열을 로컬 시간 기준으로 파싱
+        const [year, month, day] = lastStudyDate.split("-").map(Number);
+        const lastDate = new Date(year, month - 1, day);
+        lastDate.setHours(0, 0, 0, 0);
         const daysDiff = Math.floor(
           (todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
         );
@@ -152,7 +168,7 @@ export const useStreakStore = create<StreakStore>()(
 
       getStreakInfo: () => {
         const { currentStreak, longestStreak, lastStudyDate, streakHistory } = get();
-        const today = new Date().toISOString().split("T")[0];
+        const today = getLocalDateString(new Date());
         
         const isStreakActive = streakHistory.some((h) => h.date === today && h.studied);
         
