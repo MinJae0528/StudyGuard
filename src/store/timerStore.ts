@@ -10,6 +10,7 @@ interface TimerState {
   isRestTimeOver: boolean; // 휴식 시간이 끝났는지 여부
   restRemainingTime: number; // 남은 휴식 시간 (초)
   isRestPostponed: boolean; // 휴식 알림에서 나중에를 눌렀는지 여부
+  hasUsedExtendedRest: boolean; // 추가 휴식을 이미 사용했는지 여부 (1회 제한)
 }
 
 interface TimerActions {
@@ -23,6 +24,7 @@ interface TimerActions {
   checkRestTimeOver: () => void;
   setRestPostponed: (postponed: boolean) => void;
   completeEnd: () => void; // 완전 종료 (학습과 휴식 모두 종료)
+  setExtendedRestUsed: (used: boolean) => void; // 추가 휴식 사용 여부 설정
 }
 
 type TimerStore = TimerState & TimerActions;
@@ -38,6 +40,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
   isRestTimeOver: false,
   restRemainingTime: 0,
   isRestPostponed: false,
+  hasUsedExtendedRest: false, // 추가 휴식 사용 여부 (1회 제한)
 
   // 액션들
   startStudy: () => {
@@ -51,6 +54,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       isRestTimeOver: false,
       restRemainingTime: 0,
       isRestPostponed: false, // 공부 시작 시 나중에 상태 초기화
+      hasUsedExtendedRest: false, // 새로운 공부 시작 시 추가 휴식 사용 여부 리셋
     });
   },
 
@@ -126,6 +130,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       isRestTimeOver: false,
       restRemainingTime: 0,
       isRestPostponed: false,
+      hasUsedExtendedRest: false,
     });
   },
 
@@ -161,6 +166,11 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       isRestTimeOver: false,
       restRemainingTime: 0,
       isRestPostponed: false,
+      hasUsedExtendedRest: false, // 종료 시 추가 휴식 사용 여부 리셋
     });
+  },
+
+  setExtendedRestUsed: (used: boolean) => {
+    set({ hasUsedExtendedRest: used });
   },
 }));

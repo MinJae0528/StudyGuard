@@ -26,6 +26,7 @@ const StudyTimer: React.FC = () => {
     isRestTimeOver,
     restRemainingTime,
     isRestPostponed,
+    hasUsedExtendedRest,
     startStudy,
     pauseStudy,
     stopStudy,
@@ -34,6 +35,7 @@ const StudyTimer: React.FC = () => {
     updateRestTime,
     setRestPostponed,
     completeEnd,
+    setExtendedRestUsed,
   } = useTimerStore();
 
   const [displayTime, setDisplayTime] = useState("00:00:00");
@@ -160,9 +162,49 @@ const StudyTimer: React.FC = () => {
             text: "나중에",
             style: "cancel",
             onPress: () => {
-              // 나중에를 누르면 추가 휴식 시간 설정 모달 표시 (1-5분만)
-              setIsExtendedRest(true);
-              setShowRestModal(true);
+              // 추가 휴식을 이미 사용했는지 확인
+              if (hasUsedExtendedRest) {
+                Alert.alert(
+                  "추가 휴식 불가",
+                  "추가 휴식은 1회만 사용할 수 있습니다.\n공부를 시작하시겠습니까?",
+                  [
+                    {
+                      text: "취소",
+                      style: "cancel",
+                    },
+                    {
+                      text: "공부 시작",
+                      style: "default",
+                      onPress: () => startStudy(),
+                    },
+                  ]
+                );
+              } else {
+                // 추가 휴식 사용 확인 모달 (네/아니오)
+                Alert.alert(
+                  "추가 휴식 시간",
+                  "추가 휴식 시간(1-5분)을 사용하시겠습니까?\n(1회만 사용 가능)",
+                  [
+                    {
+                      text: "아니오",
+                      style: "cancel",
+                      onPress: () => {
+                        // 아니오를 누르면 공부 시작
+                        startStudy();
+                      },
+                    },
+                    {
+                      text: "네",
+                      style: "default",
+                      onPress: () => {
+                        // 네를 누르면 추가 휴식 시간 설정 모달 표시 (1-5분만)
+                        setIsExtendedRest(true);
+                        setShowRestModal(true);
+                      },
+                    },
+                  ]
+                );
+              }
             },
           },
           {
@@ -295,6 +337,8 @@ const StudyTimer: React.FC = () => {
     // 추가 휴식 시간 설정 시 알림 플래그 리셋
     if (isExtendedRest) {
       restOverAlertShown.current = false;
+      // 추가 휴식 사용 플래그 설정 (1회 제한)
+      setExtendedRestUsed(true);
     }
 
     // 휴식 모드로 전환 (알림은 타이머가 0초가 될 때 발송)

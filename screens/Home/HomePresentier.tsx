@@ -8,7 +8,7 @@ const HomePresenter = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>StudyGuard</Text>
-        <Text style={styles.subtitle}>휴식 중독 해결을 위한 학습 관리</Text>
+        <Text style={styles.subtitle}>쉬어도 다시 집중할 수 있게</Text>
       </View>
       <ScrollView
         style={styles.scrollView}
