@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useGoalStore } from "../store/goalStore";
 import { usePremiumStore } from "../store/premiumStore";
+import { useStudyRecordStore } from "../store/studyRecordStore";
 
 interface GoalSettingModalProps {
   visible: boolean;
@@ -37,7 +38,7 @@ const GoalSettingModal: React.FC<GoalSettingModalProps> = ({
     currentGoal ? Math.floor(currentGoal.targetTime / 3600).toString() : "0"
   );
   const [minutes, setMinutes] = useState(
-    currentGoal ? Math.floor((currentGoal.targetTime % 3600) / 60).toString() : "30"
+    currentGoal ? Math.floor((currentGoal.targetTime % 3600) / 60).toString() : "0"
   );
 
   const getTypeLabel = () => {
@@ -52,6 +53,7 @@ const GoalSettingModal: React.FC<GoalSettingModalProps> = ({
   };
 
   const handleSave = () => {
+    // 프리미엄 체크
     if (isPremiumFeature && !isPremium) {
       Alert.alert(
         "프리미엄 기능",
@@ -69,16 +71,54 @@ const GoalSettingModal: React.FC<GoalSettingModalProps> = ({
       return;
     }
 
-    if (type === "daily") {
-      setDailyGoal(totalSeconds);
-    } else if (type === "weekly") {
-      setWeeklyGoal(totalSeconds);
-    } else {
-      setMonthlyGoal(totalSeconds);
-    }
+    try {
+      console.log(`[GoalSettingModal] 목표 설정 시도: type=${type}, totalSeconds=${totalSeconds}, isPremium=${isPremium}, isPremiumFeature=${isPremiumFeature}`);
+      
+      if (type === "daily") {
+        setDailyGoal(totalSeconds);
+        console.log("[GoalSettingModal] 일일 목표 설정 완료");
+        // 목표 설정 후 즉시 진행률 업데이트
+        const { checkGoalAchievement } = useGoalStore.getState();
+        const { getTotalStudyTimeToday } = useStudyRecordStore.getState();
+        setTimeout(() => {
+          checkGoalAchievement("daily", getTotalStudyTimeToday());
+        }, 100);
+      } else if (type === "weekly") {
+        console.log("[GoalSettingModal] 주간 목표 설정 시도");
+        setWeeklyGoal(totalSeconds);
+        console.log("[GoalSettingModal] 주간 목표 설정 완료");
+        // 설정된 목표 확인
+        const savedGoal = useGoalStore.getState().getActiveGoal("weekly");
+        console.log("[GoalSettingModal] 저장된 주간 목표:", savedGoal);
+        // 목표 설정 후 즉시 진행률 업데이트
+        const { checkGoalAchievement } = useGoalStore.getState();
+        const { getWeeklyStats } = useStudyRecordStore.getState();
+        setTimeout(() => {
+          const weeklyStats = getWeeklyStats(0);
+          checkGoalAchievement("weekly", weeklyStats.totalTime);
+        }, 100);
+      } else {
+        console.log("[GoalSettingModal] 월간 목표 설정 시도");
+        setMonthlyGoal(totalSeconds);
+        console.log("[GoalSettingModal] 월간 목표 설정 완료");
+        // 설정된 목표 확인
+        const savedGoal = useGoalStore.getState().getActiveGoal("monthly");
+        console.log("[GoalSettingModal] 저장된 월간 목표:", savedGoal);
+        // 목표 설정 후 즉시 진행률 업데이트
+        const { checkGoalAchievement } = useGoalStore.getState();
+        const { getMonthlyStats } = useStudyRecordStore.getState();
+        setTimeout(() => {
+          const monthlyStats = getMonthlyStats(0);
+          checkGoalAchievement("monthly", monthlyStats.totalTime);
+        }, 100);
+      }
 
-    Alert.alert("성공", `${getTypeLabel()}이 설정되었습니다!`);
-    onClose();
+      Alert.alert("성공", `${getTypeLabel()}이 설정되었습니다!`);
+      onClose();
+    } catch (error) {
+      console.error("[GoalSettingModal] 목표 설정 오류:", error);
+      Alert.alert("오류", "목표 설정 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -126,7 +166,7 @@ const GoalSettingModal: React.FC<GoalSettingModalProps> = ({
                 value={minutes}
                 onChangeText={setMinutes}
                 keyboardType="number-pad"
-                placeholder="30"
+                placeholder="0"
                 placeholderTextColor="#7A9E9F"
               />
               <Text style={styles.unit}>분</Text>

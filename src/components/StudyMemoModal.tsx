@@ -29,6 +29,7 @@ const StudyMemoModal: React.FC<StudyMemoModalProps> = ({
   studyDuration,
 }) => {
   const [subject, setSubject] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 시간을 시:분:초 형식으로 포맷팅
   const formatTime = (seconds: number): string => {
@@ -63,18 +64,33 @@ const StudyMemoModal: React.FC<StudyMemoModalProps> = ({
   useEffect(() => {
     if (visible) {
       setSubject("");
+      setIsSubmitting(false);
     }
   }, [visible]);
 
   const handleQuickSelect = (selectedSubject: string) => {
+    if (isSubmitting) return;
     setSubject(selectedSubject);
   };
 
   const handleConfirm = () => {
+    if (isSubmitting || !subject.trim()) return;
+    
+    setIsSubmitting(true);
+    onConfirm(subject.trim());
+    onClose();
+  };
+
+  const handleRecordAndTerminate = () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
     if (subject.trim()) {
-      onConfirm(subject.trim());
-      onClose();
+      onConfirm(subject.trim(), true);
+    } else {
+      onCompleteEnd?.();
     }
+    onClose();
   };
 
   return (
@@ -165,41 +181,41 @@ const StudyMemoModal: React.FC<StudyMemoModalProps> = ({
               <View style={styles.buttonSection}>
                 <TouchableOpacity
                   onPress={handleConfirm}
-                  disabled={!subject.trim()}
+                  disabled={!subject.trim() || isSubmitting}
                   style={[
                     styles.confirmButton,
-                    !subject.trim() && styles.confirmButtonDisabled,
+                    (!subject.trim() || isSubmitting) && styles.confirmButtonDisabled,
                   ]}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.confirmButtonText}>
-                    기록하고 휴식 설정하기
+                    {isSubmitting ? "처리 중..." : "기록하고 휴식 설정하기"}
                   </Text>
                 </TouchableOpacity>
 
                 {onCompleteEnd && (
                   <TouchableOpacity
-                    onPress={() => {
-                      if (subject.trim()) {
-                        onConfirm(subject.trim(), true);
-                        onClose(); // 모달 닫기
-                      } else {
-                        onCompleteEnd();
-                        onClose(); // 모달 닫기
-                      }
-                    }}
-                    style={styles.completeEndButton}
+                    onPress={handleRecordAndTerminate}
+                    disabled={isSubmitting}
+                    style={[
+                      styles.completeEndButton,
+                      isSubmitting && styles.confirmButtonDisabled,
+                    ]}
                     activeOpacity={0.8}
                   >
                     <Text style={styles.completeEndButtonText}>
-                      기록하고 종료
+                      {isSubmitting ? "처리 중..." : "기록하고 종료"}
                     </Text>
                   </TouchableOpacity>
                 )}
 
                 <TouchableOpacity
                   onPress={onClose}
-                  style={styles.cancelButton}
+                  disabled={isSubmitting}
+                  style={[
+                    styles.cancelButton,
+                    isSubmitting && styles.confirmButtonDisabled,
+                  ]}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.cancelButtonText}>취소</Text>

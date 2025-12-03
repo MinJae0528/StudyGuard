@@ -11,61 +11,124 @@ interface GoalProgressProps {
 }
 
 const GoalProgress: React.FC<GoalProgressProps> = ({ type, onPress }) => {
-  const { getTodayGoalProgress, getWeeklyGoalProgress, getMonthlyGoalProgress } = useGoalStore();
-  const { getTotalStudyTimeToday, getWeeklyStats, getMonthlyStats } = useStudyRecordStore();
+  const {
+    getTodayGoalProgress,
+    getWeeklyGoalProgress,
+    getMonthlyGoalProgress,
+    goals,
+  } = useGoalStore();
+  const { getTotalStudyTimeToday, getWeeklyStats, getMonthlyStats } =
+    useStudyRecordStore();
   const { checkPremiumStatus } = usePremiumStore();
-  
+
   // 시연용: 프리미엄 체크 제거
   // 일일 목표는 무료, 주간/월간 목표는 프리미엄
   // const isPremium = type === "daily" ? true : checkPremiumStatus();
   const isPremium = true; // 시연용: 항상 프리미엄으로 설정
   const isPremiumFeature = type === "weekly" || type === "monthly";
 
-  let progressData;
-  let actualTime = 0;
+  // 목표와 진행률을 state로 관리하여 목표 변경 시 자동 업데이트
+  const [progressData, setProgressData] = React.useState(() => {
+    if (type === "daily") {
+      return getTodayGoalProgress();
+    } else if (type === "weekly") {
+      return getWeeklyGoalProgress();
+    } else {
+      return getMonthlyGoalProgress();
+    }
+  });
 
+  let actualTime = 0;
   if (type === "daily") {
-    progressData = getTodayGoalProgress();
     actualTime = getTotalStudyTimeToday();
   } else if (type === "weekly") {
-    progressData = getWeeklyGoalProgress();
     const weeklyStats = getWeeklyStats(0);
     actualTime = weeklyStats.totalTime;
   } else {
-    progressData = getMonthlyGoalProgress();
     const monthlyStats = getMonthlyStats(0);
     actualTime = monthlyStats.totalTime;
   }
 
   const achievementShown = useRef(false);
 
-  // 목표 달성 체크 (실제 학습 시간 업데이트 시)
+  // 목표 변경 감지 및 진행률 업데이트 (goals 배열 변경 시)
+  useEffect(() => {
+    let newProgressData;
+    if (type === "daily") {
+      newProgressData = getTodayGoalProgress();
+    } else if (type === "weekly") {
+      newProgressData = getWeeklyGoalProgress();
+    } else {
+      newProgressData = getMonthlyGoalProgress();
+    }
+
+    console.log(
+      `[GoalProgress] 목표 변경 감지: type=${type}, goal=`,
+      newProgressData.goal
+    );
+    setProgressData(newProgressData);
+  }, [
+    type,
+    goals,
+    getTodayGoalProgress,
+    getWeeklyGoalProgress,
+    getMonthlyGoalProgress,
+  ]);
+
+  // 목표 달성 체크 (실제 학습 시간 업데이트 시 및 목표 변경 시)
   useEffect(() => {
     if (progressData.goal && isPremium) {
       const { checkGoalAchievement } = useGoalStore.getState();
       checkGoalAchievement(type, actualTime);
-      
+
+      // 진행률 다시 계산 (목표 변경 반영)
+      let updatedProgressData;
+      if (type === "daily") {
+        updatedProgressData = getTodayGoalProgress();
+      } else if (type === "weekly") {
+        updatedProgressData = getWeeklyGoalProgress();
+      } else {
+        updatedProgressData = getMonthlyGoalProgress();
+      }
+
+      console.log(
+        `[GoalProgress] 진행률 업데이트: type=${type}, progress=${updatedProgressData.progress}%, goal=`,
+        updatedProgressData.goal
+      );
+      setProgressData(updatedProgressData);
+
       // 목표 달성 시 알림 (한 번만)
-      if (progressData.achieved && !achievementShown.current && actualTime > 0) {
+      if (
+        updatedProgressData.achieved &&
+        !achievementShown.current &&
+        actualTime > 0
+      ) {
         achievementShown.current = true;
-        
+
         // 로컬 알림
         NotificationService.sendImmediateNotification(
           "🎉 목표 달성!",
           `${getTypeLabel()}를 달성했습니다! 정말 대단해요!`
         );
-        
+
         // 앱 내 알림
         Alert.alert(
           "🎉 목표 달성!",
           `${getTypeLabel()}를 달성했습니다!\n\n정말 대단해요! 계속해서 좋은 습관을 유지해보세요.`,
           [{ text: "확인", style: "default" }]
         );
-      } else if (!progressData.achieved) {
+      } else if (!updatedProgressData.achieved) {
         achievementShown.current = false;
       }
     }
-  }, [actualTime, type, isPremium, progressData.achieved]);
+  }, [
+    actualTime,
+    type,
+    isPremium,
+    progressData.goal?.id,
+    progressData.goal?.targetTime,
+    goals,
+  ]);
 
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -99,7 +162,9 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ type, onPress }) => {
           <Text style={styles.lockBadge}>프리미엄</Text>
         </View>
         <View style={styles.lockContent}>
-          <Text style={styles.lockText}>프리미엄을 구독하여 목표를 설정하세요</Text>
+          <Text style={styles.lockText}>
+            프리미엄을 구독하여 목표를 설정하세요
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -174,7 +239,8 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ type, onPress }) => {
           />
         </View>
         <Text style={styles.progressText}>
-          {progress.toFixed(0)}% ({formatTime(actualTime)} / {formatTime(progressData.goal.targetTime)})
+          {progress.toFixed(0)}% ({formatTime(actualTime)} /{" "}
+          {formatTime(progressData.goal.targetTime)})
         </Text>
       </View>
     </TouchableOpacity>
@@ -273,4 +339,3 @@ const styles = StyleSheet.create({
 });
 
 export default GoalProgress;
-

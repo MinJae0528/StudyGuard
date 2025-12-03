@@ -8,6 +8,9 @@ export interface Goal {
   targetTime: number; // 목표 시간 (초)
   createdAt: number; // 생성 시간
   isActive: boolean; // 활성화 여부
+  date?: string; // 일별 목표: YYYY-MM-DD
+  weekStart?: string; // 주간 목표: 주의 시작일 YYYY-MM-DD (일요일)
+  month?: string; // 월간 목표: YYYY-MM
 }
 
 export interface GoalAchievement {
@@ -23,10 +26,11 @@ interface GoalStore {
   achievements: GoalAchievement[];
   
   // 목표 설정
-  setDailyGoal: (targetTime: number) => void;
-  setWeeklyGoal: (targetTime: number) => void;
-  setMonthlyGoal: (targetTime: number) => void;
-  getActiveGoal: (type: "daily" | "weekly" | "monthly") => Goal | null;
+      setDailyGoal: (targetTime: number) => void;
+      setWeeklyGoal: (targetTime: number) => void;
+      setMonthlyGoal: (targetTime: number) => void;
+      getActiveGoal: (type: "daily" | "weekly" | "monthly") => Goal | null;
+      checkAndResetGoals: () => void; // 날짜/주/월 변경 시 목표 리셋 체크
   
   // 목표 달성 체크
   checkGoalAchievement: (type: "daily" | "weekly" | "monthly", actualTime: number) => void;
@@ -46,8 +50,11 @@ export const useGoalStore = create<GoalStore>()(
       achievements: [],
 
       setDailyGoal: (targetTime: number) => {
+        const today = new Date().toISOString().split("T")[0];
+        
+        // 오늘 날짜의 목표 찾기
         const existingGoal = get().goals.find(
-          (g) => g.type === "daily" && g.isActive
+          (g) => g.type === "daily" && g.date === today && g.isActive
         );
         
         if (existingGoal) {
@@ -60,6 +67,13 @@ export const useGoalStore = create<GoalStore>()(
             ),
           });
         } else {
+          // 기존 일별 목표 비활성화
+          const updatedGoals = get().goals.map((g) =>
+            g.type === "daily" && g.isActive
+              ? { ...g, isActive: false }
+              : g
+          );
+          
           // 새 목표 생성
           const newGoal: Goal = {
             id: `daily-${Date.now()}`,
@@ -67,14 +81,25 @@ export const useGoalStore = create<GoalStore>()(
             targetTime,
             createdAt: Date.now(),
             isActive: true,
+            date: today,
           };
-          set({ goals: [...get().goals, newGoal] });
+          set({ goals: [...updatedGoals, newGoal] });
         }
       },
 
       setWeeklyGoal: (targetTime: number) => {
+        // 현재 주의 시작일 계산 (일요일 기준)
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const daysToSunday = -dayOfWeek;
+        const sunday = new Date(now);
+        sunday.setDate(now.getDate() + daysToSunday);
+        sunday.setHours(0, 0, 0, 0);
+        const weekStart = sunday.toISOString().split("T")[0];
+        
+        // 이번 주의 목표 찾기
         const existingGoal = get().goals.find(
-          (g) => g.type === "weekly" && g.isActive
+          (g) => g.type === "weekly" && g.weekStart === weekStart && g.isActive
         );
         
         if (existingGoal) {
@@ -86,20 +111,35 @@ export const useGoalStore = create<GoalStore>()(
             ),
           });
         } else {
+          // 기존 주간 목표 비활성화
+          const updatedGoals = get().goals.map((g) =>
+            g.type === "weekly" && g.isActive
+              ? { ...g, isActive: false }
+              : g
+          );
+          
           const newGoal: Goal = {
             id: `weekly-${Date.now()}`,
             type: "weekly",
             targetTime,
             createdAt: Date.now(),
             isActive: true,
+            weekStart: weekStart,
           };
-          set({ goals: [...get().goals, newGoal] });
+          set({ goals: [...updatedGoals, newGoal] });
         }
       },
 
       setMonthlyGoal: (targetTime: number) => {
+        // 현재 월 계산
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const monthStr = `${year}-${(month + 1).toString().padStart(2, "0")}`;
+        
+        // 이번 달의 목표 찾기
         const existingGoal = get().goals.find(
-          (g) => g.type === "monthly" && g.isActive
+          (g) => g.type === "monthly" && g.month === monthStr && g.isActive
         );
         
         if (existingGoal) {
@@ -111,19 +151,52 @@ export const useGoalStore = create<GoalStore>()(
             ),
           });
         } else {
+          // 기존 월간 목표 비활성화
+          const updatedGoals = get().goals.map((g) =>
+            g.type === "monthly" && g.isActive
+              ? { ...g, isActive: false }
+              : g
+          );
+          
           const newGoal: Goal = {
             id: `monthly-${Date.now()}`,
             type: "monthly",
             targetTime,
             createdAt: Date.now(),
             isActive: true,
+            month: monthStr,
           };
-          set({ goals: [...get().goals, newGoal] });
+          set({ goals: [...updatedGoals, newGoal] });
         }
       },
 
       getActiveGoal: (type: "daily" | "weekly" | "monthly") => {
-        return get().goals.find((g) => g.type === type && g.isActive) || null;
+        const now = new Date();
+        
+        if (type === "daily") {
+          const today = now.toISOString().split("T")[0];
+          return get().goals.find((g) => g.type === type && g.date === today && g.isActive) || null;
+        } else if (type === "weekly") {
+          // 현재 주의 시작일 계산 (일요일 기준)
+          const dayOfWeek = now.getDay();
+          const daysToSunday = -dayOfWeek;
+          const sunday = new Date(now);
+          sunday.setDate(now.getDate() + daysToSunday);
+          sunday.setHours(0, 0, 0, 0);
+          const weekStart = sunday.toISOString().split("T")[0];
+          return get().goals.find((g) => g.type === type && g.weekStart === weekStart && g.isActive) || null;
+        } else {
+          // 월간 목표
+          const year = now.getFullYear();
+          const month = now.getMonth();
+          const monthStr = `${year}-${(month + 1).toString().padStart(2, "0")}`;
+          return get().goals.find((g) => g.type === type && g.month === monthStr && g.isActive) || null;
+        }
+      },
+      
+      checkAndResetGoals: () => {
+        // 목표가 자동으로 날짜/주/월별로 관리되므로 별도 리셋 로직 불필요
+        // getActiveGoal에서 현재 날짜/주/월에 맞는 목표만 반환하므로 자동으로 필터링됨
       },
 
       checkGoalAchievement: (type: "daily" | "weekly" | "monthly", actualTime: number) => {
@@ -192,22 +265,22 @@ export const useGoalStore = create<GoalStore>()(
 
       getWeeklyGoalProgress: () => {
         const goal = get().getActiveGoal("weekly");
-        if (!goal) {
+        if (!goal || !goal.weekStart) {
           return { goal: null, progress: 0, achieved: false };
         }
 
-        // 현재 주의 시작일 계산
-        const now = new Date();
-        const day = now.getDay();
-        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-        const monday = new Date(now.setDate(diff));
-        monday.setHours(0, 0, 0, 0);
+        // 주의 시작일과 종료일 계산 (일요일 기준)
+        const weekStart = new Date(goal.weekStart);
+        weekStart.setHours(0, 0, 0, 0);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
 
         // 이번 주의 달성 기록들
         const weekAchievements = get().achievements.filter((a) => {
           if (a.goalId !== goal.id) return false;
           const achievementDate = new Date(a.date);
-          return achievementDate >= monday;
+          return achievementDate >= weekStart && achievementDate <= weekEnd;
         });
 
         const totalTime = weekAchievements.reduce((sum, a) => sum + a.actualTime, 0);
